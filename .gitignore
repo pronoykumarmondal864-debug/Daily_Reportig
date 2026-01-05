@@ -1,0 +1,18 @@
+# Python compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+env/
+
+# Secrets
+*.env
+token.txt
+secrets.*
+
+# OS files
+.DS_Store
+Thumbs.db
