@@ -106,6 +106,13 @@ AND order_media != 'B2B'
 AND {CATEGORY_FILTER}
 """)
 
+created_orders = run_query(f"""...""") or 0
+served_orders = run_query(f"""...""") or 0
+cancelled_orders = run_query(f"""...""") or 0
+served_gmv = run_query(f"""...""") or 0
+served_nr = run_query(f"""...""") or 0
+
+
 # =====================
 # SEND TELEGRAM MESSAGE
 # =====================
