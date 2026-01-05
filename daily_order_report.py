@@ -1,20 +1,22 @@
+import os
 import pymysql
 import requests
 from datetime import date, timedelta
+import time
 
 # =====================
-# CONFIG (ENV VARS)
+# CONFIG (FROM ENVIRONMENT)
 # =====================
 DB_CONFIG = {
-    "host":     "${{ secrets.DB_HOST }}",
-    "user":     "${{ secrets.DB_USER }}",
-    "password": "${{ secrets.DB_PASSWORD }}",
-    "database": "${{ secrets.DB_NAME }}",
+    "host": os.environ["DB_HOST"],
+    "user": os.environ["DB_USER"],
+    "password": os.environ["DB_PASSWORD"],
+    "database": os.environ["DB_NAME"],
     "cursorclass": pymysql.cursors.DictCursor
 }
 
-BOT_TOKEN = "${{ secrets.TELEGRAM_BOT_TOKEN }}"
-CHAT_ID  = "${{ secrets.TELEGRAM_CHAT_ID }}"
+BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
+CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
 YESTERDAY = (date.today() - timedelta(days=1)).strftime("%Y-%m-%d")
 
@@ -29,10 +31,22 @@ AND order_media NOT IN ('B2B','Bondhu')
 """
 
 # =====================
-# DB QUERY EXECUTOR
+# DB CONNECT WITH RETRY
+# =====================
+def connect_db(retries=3, delay=5):
+    for i in range(retries):
+        try:
+            return pymysql.connect(**DB_CONFIG)
+        except pymysql.err.OperationalError as e:
+            print(f"[{i+1}/{retries}] DB connection failed: {e}")
+            time.sleep(delay)
+    raise Exception("Failed to connect to DB after retries")
+
+# =====================
+# RUN QUERY
 # =====================
 def run_query(sql):
-    conn = pymysql.connect(**DB_CONFIG)
+    conn = connect_db()
     with conn.cursor() as cur:
         cur.execute(sql)
         result = cur.fetchone()
@@ -40,7 +54,7 @@ def run_query(sql):
     return list(result.values())[0]
 
 # =====================
-# METRICS
+# CALCULATE METRICS
 # =====================
 created_orders = run_query(f"""
 SELECT COUNT(DISTINCT order_unique_id)
@@ -84,9 +98,7 @@ SELECT ROUND(SUM(
   IF(service_id LIKE '%2392%', gmv/8700*2500,
   IF(service_id LIKE '%3446%', gmv/10250*3450,
   gmv - sp_cost_service - sp_cost_additional - sp_cost_delivery - discount_partner - discount_sheba
-)))))
- /
- (CASE WHEN order_first_created >= '2025-11-03' THEN 115 ELSE 105 END) * 100
+)))))/ (CASE WHEN order_first_created >= '2025-11-03' THEN 115 ELSE 105 END) * 100
 ))
 FROM partner_order_report
 WHERE closed_date = '{YESTERDAY}'
@@ -95,22 +107,27 @@ AND {CATEGORY_FILTER}
 """)
 
 # =====================
-# TELEGRAM MESSAGE
+# SEND TELEGRAM MESSAGE
 # =====================
 message = f"""
 📊 *Daily Order Summary*
 
 📅 *Date:* {YESTERDAY}
 
-Created Orders: *{created_orders}*
-Served Orders: *{served_orders}*
-Cancelled Orders: *{cancelled_orders}*
+Created Orders: *{created_orders:,}*
+Served Orders: *{served_orders:,}*
+Cancelled Orders: *{cancelled_orders:,}*
 
 Served GMV: *{served_gmv:,}*
 Served NR: *{served_nr:,}*
 """
 
-requests.post(
-    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-    json={"chat_id": CHAT_ID, "text": message, "parse_mode": "Markdown"}
-)
+try:
+    resp = requests.post(
+        f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+        json={"chat_id": CHAT_ID, "text": message, "parse_mode": "Markdown"}
+    )
+    resp.raise_for_status()
+    print("Telegram message sent successfully")
+except requests.exceptions.RequestException as e:
+    print(f"Failed to send Telegram message: {e}")
