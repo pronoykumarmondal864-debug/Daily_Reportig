@@ -1,7 +1,7 @@
 import os
 import pymysql
 import requests
-from datetime import date, timedelta
+from datetime import datetime, timedelta, timezone
 import time
 
 # =====================
@@ -18,7 +18,15 @@ DB_CONFIG = {
 BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
-YESTERDAY = (date.today() - timedelta(days=1)).strftime("%Y-%m-%d")
+# BDT timezone offset
+BDT = timezone(timedelta(hours=6))
+
+# Current date in BDT
+today_bdt = datetime.now(BDT).date()
+
+# Yesterday in BDT
+YESTERDAY = (today_bdt - timedelta(days=1)).strftime("%Y-%m-%d")
+
 
 CATEGORY_IDS = (
     978,962,887,873,818,1,2,73,84,91,225,240,624,226,416,619,
