@@ -51,7 +51,9 @@ def run_query(sql):
         cur.execute(sql)
         result = cur.fetchone()
     conn.close()
-    return list(result.values())[0]
+    if result is None:
+        return 0
+    return list(result.values())[0] or 0  # Ensure 0 if None
 
 # =====================
 # CALCULATE METRICS
@@ -105,13 +107,6 @@ WHERE closed_date = '{YESTERDAY}'
 AND order_media != 'B2B'
 AND {CATEGORY_FILTER}
 """)
-
-created_orders = run_query(f"""...""") or 0
-served_orders = run_query(f"""...""") or 0
-cancelled_orders = run_query(f"""...""") or 0
-served_gmv = run_query(f"""...""") or 0
-served_nr = run_query(f"""...""") or 0
-
 
 # =====================
 # SEND TELEGRAM MESSAGE
