@@ -2,8 +2,9 @@ name: Daily Order Telegram Report
 
 on:
   schedule:
-    - cron: "30 3 * * *"   # 03:30 UTC ~ 09:30 Bangladesh
-  workflow_dispatch:
+    # Runs daily at 12:01 BDT → 06:01 UTC
+    - cron: "1 6 * * *"
+  workflow_dispatch:  # Manual trigger
 
 jobs:
   report:
