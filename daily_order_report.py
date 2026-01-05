@@ -20,15 +20,11 @@ CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
 YESTERDAY = (date.today() - timedelta(days=1)).strftime("%Y-%m-%d")
 
-CATEGORY_FILTER = """
-master_category_id IN (
-978,962,887,873,818,1,2,73,84,91,225,240,624,226,416,619,
-3,4,5,6,221,224,236,365,505,599,621,635,183,334,544,695,
-8,186,237,235,596,537,868,918,940,1009,1010
+CATEGORY_IDS = (
+    978,962,887,873,818,1,2,73,84,91,225,240,624,226,416,619,
+    3,4,5,6,221,224,236,365,505,599,621,635,183,334,544,695,
+    8,186,237,235,596,537,868,918,940,1009,1010
 )
-AND master_category_id != 802
-AND order_media NOT IN ('B2B','Bondhu')
-"""
 
 # =====================
 # DB CONNECT WITH RETRY
@@ -56,38 +52,41 @@ def run_query(sql):
     return list(result.values())[0] or 0  # Ensure 0 if None
 
 # =====================
-# CALCULATE METRICS
+# COMMON FILTER FUNCTION
+# =====================
+def get_filter(column_name):
+    return f"""
+    DATE({column_name}) = '{YESTERDAY}'
+    AND master_category_id IN {CATEGORY_IDS}
+    AND master_category_id != 802
+    AND order_media NOT IN ('B2B','Bondhu')
+    """
+
+# =====================
+# QUERIES
 # =====================
 created_orders = run_query(f"""
 SELECT COUNT(DISTINCT order_unique_id)
 FROM partner_order_report
-WHERE order_first_created = '{YESTERDAY}'
-AND order_media != 'B2B'
-AND {CATEGORY_FILTER}
+WHERE {get_filter('order_first_created')}
 """)
 
 served_orders = run_query(f"""
 SELECT COUNT(DISTINCT order_unique_id)
 FROM partner_order_report
-WHERE closed_date = '{YESTERDAY}'
-AND order_media != 'B2B'
-AND {CATEGORY_FILTER}
+WHERE {get_filter('closed_date')}
 """)
 
 cancelled_orders = run_query(f"""
 SELECT COUNT(DISTINCT order_unique_id)
 FROM partner_order_report
-WHERE cancelled_date = '{YESTERDAY}'
-AND order_media != 'B2B'
-AND {CATEGORY_FILTER}
+WHERE {get_filter('cancelled_date')}
 """)
 
 served_gmv = run_query(f"""
 SELECT ROUND(SUM(gmv))
 FROM partner_order_report
-WHERE closed_date = '{YESTERDAY}'
-AND order_media != 'B2B'
-AND {CATEGORY_FILTER}
+WHERE {get_filter('closed_date')}
 """)
 
 served_nr = run_query(f"""
@@ -103,9 +102,7 @@ SELECT ROUND(SUM(
 )))))/ (CASE WHEN order_first_created >= '2025-11-03' THEN 115 ELSE 105 END) * 100
 ))
 FROM partner_order_report
-WHERE closed_date = '{YESTERDAY}'
-AND order_media != 'B2B'
-AND {CATEGORY_FILTER}
+WHERE {get_filter('closed_date')}
 """)
 
 # =====================
