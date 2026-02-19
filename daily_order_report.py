@@ -8,7 +8,7 @@ import time
 # CONFIG (FROM ENVIRONMENT)
 # =====================
 DB_CONFIG = {
-    "host": os.environ["DB_HOST"],
+    "host": os.environ["DB_HOST"].strip(),
     "user": os.environ["DB_USER"],
     "password": os.environ["DB_PASSWORD"],
     "database": os.environ["DB_NAME"],
